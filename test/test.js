@@ -41,7 +41,7 @@ describe("RGA", () => {
     }
   }
 
-  it("is replicable from history", () => {
+  it("can be replicated from history", () => {
     var p = new RGA(1);
     var c = RGA.left;
     c = type(p, c, "good ");
@@ -52,6 +52,15 @@ describe("RGA", () => {
 
     var q = new RGA(2, p.history());
     assert(q.text() === "good morning");
+  });
+
+  it("can be replicated from history even if input is typed backwards", () => {
+    var p = new RGA(1);
+    for (var c of "olleh")
+      p.addRight(RGA.left, c);
+
+    var q = new RGA(2, p.history());
+    assert(q.text() === "hello");
   });
 
   it("sends ops to tied replicas", () => {
