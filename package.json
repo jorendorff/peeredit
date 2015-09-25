@@ -1,0 +1,23 @@
+{
+  "name": "peeredit",
+  "version": "0.0.1",
+  "description": "Collaborative text editing with a CRDT",
+  "main": "index.js",
+  "dependencies": {},
+  "engines": {
+    "node": "4.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jorendorff/peeredit.git"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jorendorff/peeredit/issues"
+  },
+  "homepage": "https://github.com/jorendorff/peeredit#readme",
+  "directories": {
+    "test": "test"
+  },
+  "author": "Jason Orendorff"
+}
