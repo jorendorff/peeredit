@@ -1,5 +1,5 @@
 var RGA = require("../lib/rga.js");
-//var peeredit = require("../lib/peeredit.js");
+var socketpair = require("../lib/socketpair.js");
 var assert = require("assert");
 
 describe("RGA", () => {
@@ -102,6 +102,21 @@ describe("RGA", () => {
     assert(replicas.every(r => r.text() === "ZA"));
   });
 
-  //describe("socket.io support", () => {
-  //});
+  describe("tieToSocket", () => {
+    it("works with socketpair", () => {
+      var pair = socketpair();
+      var a = pair[0], b = pair[1];
+      var p = new RGA(0), q = new RGA(1);
+      RGA.tieToSocket(p, a);
+      RGA.tieToSocket(q, b);
+
+      p.addRight(RGA.left, "Q");
+      assert(q.text() === "");  // not delivered yet
+      a.deliver("downstream", {
+        type: "addRight",
+        w: {atom: "Q"}
+      });
+      assert(q.text() === "Q");
+    });
+  });
 });
