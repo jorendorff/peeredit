@@ -37,7 +37,7 @@ describe("RGA", () => {
   function deleteRange(rga, start, stop) {
     var next;
     for (var cursor = start; cursor !== stop; cursor = next) {
-      next = rga.successor(cursor);
+      next = rga.e.get(cursor.timestamp);
       rga.remove(next);
     }
   }
