@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+  <head>
+    <title>peeredit - conflict-free collaborative editing</title>
+    <style>
+      #editor { 
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="editor"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="lib/rga.js"></script>
+    <script>
+      $(function (event) {
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");  // monokai, ambiance, solarized_dark, tomorrow_night
+        editor.getSession().setMode("ace/mode/javascript");
+
+        var socket = io();
+        var rga;
+        socket.on("welcome", function (event) {
+          rga = new RGA(event.id, event.history);
+          RGA.tieToSocket(rga, socket);
+
+          // Now tie the RGA to the editor.
+          rga._subscribers.push({
+            _downstream: function (op) {
+              console.log(rga.text());
+              //editor.setValue(rga.text());  // clobbering the caret/selection, probably
+            }
+          });
+
+          editor.setValue(rga.text());
+          editor.getSession().on("change", function (e) {
+            console.log("change", e);
+            if (e.action === "insert") {
+              rga.insertRowColumn(e.start.row, e.start.column, e.lines.join("\n"));
+            } else if (e.action === "remove") {
+              rga.removeRowColumn(e.start.row, e.start.column, e.lines.join("\n").length);
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
