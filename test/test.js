@@ -64,6 +64,24 @@ describe("RGA", () => {
     assert(q.text() === "hello");
   });
 
+  it("retains deleted items when replicated from history", () => {
+    var p = new RGA(1);
+    var a = p.addRight(RGA.left, "a");
+    var b = p.addRight(a, "b");
+    var other = new RGA(3, p.history());
+    p.remove(a);
+    p.remove(b);
+    assert.strictEqual(p.text(), "");
+
+    var q = new RGA(2, p.history());
+    assert.strictEqual(q.text(), "");
+
+    // Whitebox-test that q knows about the deleted characters from p.
+    q._downstream(other, {type: "addRight", u: a, w: {atom: "c", timestamp: a.atom + 2}});
+    q._downstream(other, {type: "addRight", u: b, w: {atom: "d", timestamp: b.atom + 2}});
+    assert.strictEqual(q.text(), "cd");
+  });
+
   it("sends ops to tied replicas", () => {
     var p = new RGA(1);
     var c = type(p, RGA.left, "hi");
