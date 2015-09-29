@@ -31,20 +31,73 @@
           RGA.tieToSocket(rga, socket);
 
           // Now tie the RGA to the editor.
-          rga._subscribers.push({
-            _downstream: function (op) {
-              console.log(rga.text());
-              //editor.setValue(rga.text());  // clobbering the caret/selection, probably
+          var panic = false;
+          var ignoreEvents = [];
+          var rgaToEditorPipe = {
+            _downstream: function (source, op) {
+              if (panic)
+                return;
+              console.log("received from rga, from socket:", op);
+
+              switch (op.type) {
+              case "addRight":
+                var loc = rga.getRowColumnAfter(op.t);
+                ignoreEvents.push({
+                  action: "insert",
+                  start: loc,
+                  lines: op.w.atom.split("\n")
+                });
+                editor.getSession().insert(loc, op.w.atom);
+                break;
+
+              case "remove":
+                console.log("remove:", op.t, " from:", rga);
+                var loc = rga.getRowColumnBefore(op.t);
+                ignoreEvents.push({
+                  action: "remove",
+                  start: loc
+                });
+                var removingNewline = editor.getSession().doc.getLine(loc.row).length === loc.column;
+                editor.getSession().remove({
+                  start: loc,
+                  end: removingNewline
+                       ? {row: loc.row + 1, column: 0}
+                       : {row: loc.row, column: loc.column + 1}
+                });
+                break;
+              }
             }
-          });
+          };
+          rga._subscribers.push(rgaToEditorPipe);
 
           editor.setValue(rga.text());
           editor.getSession().on("change", function (e) {
+            if (panic)
+              return;
             console.log("change", e);
+            if (ignoreEvents.length > 0) {
+              if (ignoreEvents[0].action === e.action &&
+                  ignoreEvents[0].start.row === e.start.row &&
+                  ignoreEvents[0].start.column === e.start.column &&
+                  (!("lines" in ignoreEvents[0]) ||
+                   ignoreEvents[0].lines.join("\n") === e.lines.join("\n"))) {
+                console.log("ignoring event, because it came from the editor");
+                ignoreEvents.shift();
+                return;
+              } else {
+                console.log("Uh oh, something weird happened. Expected event:", ignoreEvents[0]);
+                if (ignoreEvents.length > 1)
+                  console.log("and", ignoreEvents.length - 1, "other events:", ignoreEvents.slice(1));
+                console.log("Received event:", e);
+                panic = true;
+                alert("updates disabled");
+                return;
+              }
+            }
             if (e.action === "insert") {
-              rga.insertRowColumn(e.start.row, e.start.column, e.lines.join("\n"));
+              rga.insertRowColumn(rgaToEditorPipe, e.start.row, e.start.column, e.lines.join("\n"));
             } else if (e.action === "remove") {
-              rga.removeRowColumn(e.start.row, e.start.column, e.lines.join("\n").length);
+              rga.removeRowColumn(rgaToEditorPipe, e.start.row, e.start.column, e.lines.join("\n").length);
             }
           });
         });

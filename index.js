@@ -33,6 +33,8 @@ io.on('connection', function (socket) {
   // Populate the new client with a user id and the full document.
   var userId = nextUserId++;
   socket.emit("welcome", {id: userId, history: doc.history()});
+
+  // Propagate ops in both directions.
   RGA.tieToSocket(doc, socket);
 });
 
