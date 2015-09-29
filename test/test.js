@@ -1,6 +1,7 @@
 var RGA = require("../lib/rga.js");
 var socketpair = require("../lib/socketpair.js");
 var assert = require("assert");
+var jsc = require("jsverify");
 
 describe("RGA", () => {
   it("can contain text", () => {
@@ -162,6 +163,67 @@ describe("RGA", () => {
       p.removeRowColumn(p, 0, 8, 12);
       p.insertRowColumn(p, 0, 11, "lmnop");
       assert.strictEqual(p.text(), "abcdefghijklmnopqrs");
+    });
+
+    var arbitraryChar = jsc.elements(['a', 'b', 'c', 'X', 'Y', 'Z', '0', '\n', ' ', '\u1234']);
+    var arbitraryStr = jsc.elements(['', 'xyzzy', 'hello\nworld\n', '\n\n\n\n', '\nok',
+                                     Array(16).join("wat" - 1) + " Batman!"]);
+
+    var arbitraryRGA = jsc.bless({
+      generator: function () {
+        var len = jsc.random(0, 30), pRemove = Math.random();
+        var timestamps = [];
+        for (var i = 0; i < len; i++)
+          timestamps[i] = i;
+
+        var prev = RGA.left;
+        var h = new RGA(0);
+        for (var i = 0; i < len; i++) {
+          var tIndex = jsc.random(0, timestamps.length - 1);
+          var t = timestamps[tIndex];
+          timestamps[tIndex] = timestamps[timestamps.length - 1];
+          timestamps.length--;
+
+          var w = {atom: arbitraryChar.generator(), timestamp: t};
+          h._downstream(h, {type: "addRight", u: prev, w: w});
+          if (Math.random() < pRemove)
+            h._downstream(h, {type: "remove", w: w});
+          prev = w;
+        }
+        return h;
+      }
+    });
+
+    function randomPositionIn(str) {
+      var offset = jsc.random(0, str.length);  // note: inclusive of str.length
+      var lines = str.slice(0, offset).split("\n");
+      var row = lines.length - 1;
+      return {
+        offset: offset,
+        row: row,
+        column: lines[row].length
+      };
+    }
+
+    var arbitraryTestCase = jsc.bless({
+      generator: function () {
+        var a = arbitraryRGA.generator();
+        var text = a.text();
+        return {
+          history: a.history(),
+          text: text,
+          loc: randomPositionIn(text),
+          insert: arbitraryStr.generator()
+        };
+      }
+    });
+
+    jsc.property("inserts text (in random test cases)", arbitraryTestCase, testCase => {
+      var p = new RGA(0, testCase.history);
+      p.insertRowColumn(p, testCase.loc.row, testCase.loc.column, testCase.insert);
+      var text = testCase.text;
+      var offset = testCase.loc.offset;
+      return p.text() === text.slice(0, offset) + testCase.insert + text.slice(offset);
     });
   });
 
