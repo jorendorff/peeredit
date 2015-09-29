@@ -17,11 +17,11 @@ describe("RGA", () => {
     var c = p.addRight(RGA.left, "c");
     var b = p.addRight(RGA.left, "b");
     var a = p.addRight(RGA.left, "a");
-    p.remove(b);
+    p.remove(b.timestamp);
     assert.strictEqual(p.text(), "ac");
-    p.remove(a);
+    p.remove(a.timestamp);
     assert.strictEqual(p.text(), "c");
-    p.remove(c);
+    p.remove(c.timestamp);
     assert.strictEqual(p.text(), "");
   });
 
@@ -38,7 +38,7 @@ describe("RGA", () => {
     var next;
     for (var cursor = start; cursor !== stop; cursor = next) {
       next = rga.e.get(cursor.timestamp);
-      rga.remove(next);
+      rga.remove(next.timestamp);
     }
   }
 
@@ -69,8 +69,8 @@ describe("RGA", () => {
     var a = p.addRight(RGA.left, "a");
     var b = p.addRight(a, "b");
     var other = new RGA(3, p.history());
-    p.remove(a);
-    p.remove(b);
+    p.remove(a.timestamp);
+    p.remove(b.timestamp);
     assert.strictEqual(p.text(), "");
 
     var q = new RGA(2, p.history());
@@ -205,7 +205,7 @@ describe("RGA", () => {
           var w = {atom: arbitraryChar.generator(), timestamp: t};
           h._downstream(h, {type: "addRight", u: prev, w: w});
           if (Math.random() < pRemove)
-            h._downstream(h, {type: "remove", w: w});
+            h._downstream(h, {type: "remove", t: t});
           prev = w;
         }
         return h;
