@@ -5,7 +5,7 @@ var jsc = require("jsverify");
 
 describe("RGA", () => {
   it("can contain text", () => {
-    var p = new RGA();
+    var p = new RGA(0);
     var cursor = RGA.left;
     cursor = p.addRight(cursor, "h");
     cursor = p.addRight(cursor, "i");
@@ -13,7 +13,7 @@ describe("RGA", () => {
   });
 
   it("can delete text", () => {
-    var p = new RGA();
+    var p = new RGA(0);
     var c = p.addRight(RGA.left, "c");
     var b = p.addRight(RGA.left, "b");
     var a = p.addRight(RGA.left, "a");
