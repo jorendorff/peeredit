@@ -9,7 +9,7 @@ describe("RGA", () => {
     var cursor = RGA.left;
     cursor = p.addRight(cursor, "h");
     cursor = p.addRight(cursor, "i");
-    assert(p.text() === "hi");
+    assert.strictEqual(p.text(), "hi");
   });
 
   it("can delete text", () => {
@@ -18,11 +18,11 @@ describe("RGA", () => {
     var b = p.addRight(RGA.left, "b");
     var a = p.addRight(RGA.left, "a");
     p.remove(b);
-    assert(p.text() === "ac");
+    assert.strictEqual(p.text(), "ac");
     p.remove(a);
-    assert(p.text() === "c");
+    assert.strictEqual(p.text(), "c");
     p.remove(c);
-    assert(p.text() === "");
+    assert.strictEqual(p.text(), "");
   });
 
   function type(rga, cursor, text) {
@@ -49,10 +49,10 @@ describe("RGA", () => {
     var d = type(p, c, "bwor");
     deleteRange(p, c, d);
     type(p, c, "morning");
-    assert(p.text() === "good morning");
+    assert.strictEqual(p.text(), "good morning");
 
     var q = new RGA(2, p.history());
-    assert(q.text() === "good morning");
+    assert.strictEqual(q.text(), "good morning");
   });
 
   it("can be replicated from history even if input is typed backwards", () => {
@@ -61,7 +61,7 @@ describe("RGA", () => {
       p.addRight(RGA.left, c);
 
     var q = new RGA(2, p.history());
-    assert(q.text() === "hello");
+    assert.strictEqual(q.text(), "hello");
   });
 
   it("retains deleted items when replicated from history", () => {
@@ -89,11 +89,11 @@ describe("RGA", () => {
     RGA.tie(p, q);
 
     var c2 = type(p, c, " there");
-    assert(q.text() === "hi there");
+    assert.strictEqual(q.text(), "hi there");
     type(q, c2, " kaitlin");
-    assert(p.text() === "hi there kaitlin");
+    assert.strictEqual(p.text(), "hi there kaitlin");
     deleteRange(q, c, c2);
-    assert(p.text() === "hi kaitlin");
+    assert.strictEqual(p.text(), "hi kaitlin");
   });
 
   it("doesn't generate bogus timestamps", () => {
@@ -101,11 +101,11 @@ describe("RGA", () => {
     var q = new RGA(1);
     RGA.tie(p, q);
     var c = q.addRight(RGA.left, "A");
-    assert(q.text() === "A");
-    assert(p.text() === "A");
+    assert.strictEqual(q.text(), "A");
+    assert.strictEqual(p.text(), "A");
     var d = p.addRight(RGA.left, "B");
-    assert(p.text() === "BA");
-    assert(q.text() === "BA");
+    assert.strictEqual(p.text(), "BA");
+    assert.strictEqual(q.text(), "BA");
   });
 
   it("can replicate across a chain of intermediate replicas", () => {
@@ -130,12 +130,12 @@ describe("RGA", () => {
       RGA.tieToSocket(q, b);
 
       p.addRight(RGA.left, "Q");
-      assert(q.text() === "");  // not delivered yet
+      assert.strictEqual(q.text(), "");  // not delivered yet
       a.deliver("downstream", {
         type: "addRight",
         w: {atom: "Q"}
       });
-      assert(q.text() === "Q");
+      assert.strictEqual(q.text(), "Q");
     });
 
     it("cleans up after itself when a socket disconnects", () => {
