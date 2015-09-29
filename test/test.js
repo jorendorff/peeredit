@@ -6,7 +6,7 @@ var jsc = require("jsverify");
 describe("RGA", () => {
   it("can contain text", () => {
     var p = new RGA(0);
-    var cursor = RGA.left;
+    var cursor = RGA.left.timestamp;
     cursor = p.addRight(cursor, "h");
     cursor = p.addRight(cursor, "i");
     assert.strictEqual(p.text(), "hi");
@@ -14,14 +14,14 @@ describe("RGA", () => {
 
   it("can delete text", () => {
     var p = new RGA(0);
-    var c = p.addRight(RGA.left, "c");
-    var b = p.addRight(RGA.left, "b");
-    var a = p.addRight(RGA.left, "a");
-    p.remove(b.timestamp);
+    var c = p.addRight(RGA.left.timestamp, "c");
+    var b = p.addRight(RGA.left.timestamp, "b");
+    var a = p.addRight(RGA.left.timestamp, "a");
+    p.remove(b);
     assert.strictEqual(p.text(), "ac");
-    p.remove(a.timestamp);
+    p.remove(a);
     assert.strictEqual(p.text(), "c");
-    p.remove(c.timestamp);
+    p.remove(c);
     assert.strictEqual(p.text(), "");
   });
 
@@ -37,14 +37,14 @@ describe("RGA", () => {
   function deleteRange(rga, start, stop) {
     var next;
     for (var cursor = start; cursor !== stop; cursor = next) {
-      next = rga.e.get(cursor.timestamp);
-      rga.remove(next.timestamp);
+      next = rga.e.get(cursor).timestamp;
+      rga.remove(next);
     }
   }
 
   it("can be replicated from history", () => {
     var p = new RGA(1);
-    var c = RGA.left;
+    var c = RGA.left.timestamp;
     c = type(p, c, "good ");
     var d = type(p, c, "bwor");
     deleteRange(p, c, d);
@@ -58,7 +58,7 @@ describe("RGA", () => {
   it("can be replicated from history even if input is typed backwards", () => {
     var p = new RGA(1);
     for (var c of "olleh")
-      p.addRight(RGA.left, c);
+      p.addRight(RGA.left.timestamp, c);
 
     var q = new RGA(2, p.history());
     assert.strictEqual(q.text(), "hello");
@@ -66,25 +66,25 @@ describe("RGA", () => {
 
   it("retains deleted items when replicated from history", () => {
     var p = new RGA(1);
-    var a = p.addRight(RGA.left, "a");
+    var a = p.addRight(RGA.left.timestamp, "a");
     var b = p.addRight(a, "b");
     var other = new RGA(3, p.history());
-    p.remove(a.timestamp);
-    p.remove(b.timestamp);
+    p.remove(a);
+    p.remove(b);
     assert.strictEqual(p.text(), "");
 
     var q = new RGA(2, p.history());
     assert.strictEqual(q.text(), "");
 
     // Whitebox-test that q knows about the deleted characters from p.
-    q._downstream(other, {type: "addRight", u: a, w: {atom: "c", timestamp: a.atom + 2}});
-    q._downstream(other, {type: "addRight", u: b, w: {atom: "d", timestamp: b.atom + 2}});
+    q._downstream(other, {type: "addRight", t: a, w: {atom: "c", timestamp: b + 2}});
+    q._downstream(other, {type: "addRight", t: b, w: {atom: "d", timestamp: b + 3}});
     assert.strictEqual(q.text(), "cd");
   });
 
   it("sends ops to tied replicas", () => {
     var p = new RGA(1);
-    var c = type(p, RGA.left, "hi");
+    var c = type(p, RGA.left.timestamp, "hi");
     var q = new RGA(2, p.history());
     RGA.tie(p, q);
 
@@ -100,10 +100,10 @@ describe("RGA", () => {
     var p = new RGA(0);
     var q = new RGA(1);
     RGA.tie(p, q);
-    var c = q.addRight(RGA.left, "A");
+    var c = q.addRight(RGA.left.timestamp, "A");
     assert.strictEqual(q.text(), "A");
     assert.strictEqual(p.text(), "A");
-    var d = p.addRight(RGA.left, "B");
+    var d = p.addRight(RGA.left.timestamp, "B");
     assert.strictEqual(p.text(), "BA");
     assert.strictEqual(q.text(), "BA");
   });
@@ -115,9 +115,9 @@ describe("RGA", () => {
       replicas[i] = new RGA(i);
       RGA.tie(replicas[i - 1], replicas[i]);
     }
-    type(replicas[N-1], RGA.left, "A");
+    type(replicas[N-1], RGA.left.timestamp, "A");
     assert(replicas.every(r => r.text() === "A"));
-    type(replicas[0], RGA.left, "Z");
+    type(replicas[0], RGA.left.timestamp, "Z");
     assert(replicas.every(r => r.text() === "ZA"));
   });
 
@@ -129,7 +129,7 @@ describe("RGA", () => {
       RGA.tieToSocket(p, a);
       RGA.tieToSocket(q, b);
 
-      p.addRight(RGA.left, "Q");
+      p.addRight(RGA.left.timestamp, "Q");
       assert.strictEqual(q.text(), "");  // not delivered yet
       a.deliver("downstream", {
         type: "addRight",
@@ -194,7 +194,7 @@ describe("RGA", () => {
         for (var i = 0; i < len; i++)
           timestamps[i] = i;
 
-        var prev = RGA.left;
+        var prev = RGA.left.timestamp;
         var h = new RGA(0);
         for (var i = 0; i < len; i++) {
           var tIndex = jsc.random(0, timestamps.length - 1);
@@ -203,10 +203,10 @@ describe("RGA", () => {
           timestamps.length--;
 
           var w = {atom: arbitraryChar.generator(), timestamp: t};
-          h._downstream(h, {type: "addRight", u: prev, w: w});
+          h._downstream(h, {type: "addRight", t: prev, w: w});
           if (Math.random() < pRemove)
             h._downstream(h, {type: "remove", t: t});
-          prev = w;
+          prev = t;
         }
         return h;
       }
@@ -248,28 +248,28 @@ describe("RGA", () => {
   describe("removeRowColumn", () => {
     it("can remove text at the beginning of the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left, "abcdefg");
+      type(p, RGA.left.timestamp, "abcdefg");
       p.removeRowColumn(p, 0, 0, 3);
       assert.strictEqual(p.text(), "defg");
     });
 
     it("can remove text at the end of the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left, "hi\nthere\nyou kid");
+      type(p, RGA.left.timestamp, "hi\nthere\nyou kid");
       p.removeRowColumn(p, 2, 3, 4);
       assert.strictEqual(p.text(), "hi\nthere\nyou");
     });
 
     it("can remove everything from the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left, "good morning, how are\nyou today?");
+      type(p, RGA.left.timestamp, "good morning, how are\nyou today?");
       p.removeRowColumn(p, 0, 0, p.text().length);
       assert.strictEqual(p.text(), "");
     });
 
     it("can remove characters when some characters have already been removed", () => {
       var p = new RGA(0);
-      type(p, RGA.left, "abcdefg");
+      type(p, RGA.left.timestamp, "abcdefg");
       p.removeRowColumn(p, 0, 3, 1);
       assert.strictEqual(p.text(), "abcefg");
       p.removeRowColumn(p, 0, 2, 2);
