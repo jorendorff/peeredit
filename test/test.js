@@ -119,4 +119,65 @@ describe("RGA", () => {
       assert(q.text() === "Q");
     });
   });
+
+  describe("insertRowColumn", () => {
+    it("inserts text", () => {
+      var p = new RGA(0);
+      p.insertRowColumn(0, 0, "hello world\n");
+      assert.strictEqual(p.text(), "hello world\n");
+      p.insertRowColumn(0, 0, "## ");
+      assert.strictEqual(p.text(), "## hello world\n");
+      p.insertRowColumn(1, 0, "\nThis program prints a greeting to stdout.\n\n" +
+                        "    print 'hello'\n");
+      assert.strictEqual(p.text(), "## hello world\n\n" +
+                         "This program prints a greeting to stdout.\n\n" +
+                         "    print 'hello'\n");
+      p.insertRowColumn(4, 16, " world");
+      assert.strictEqual(p.text(), "## hello world\n\n" +
+                         "This program prints a greeting to stdout.\n\n" +
+                         "    print 'hello world'\n");
+    });
+    it("can get row and column numbers right even after deletions", () => {
+      var p = new RGA(0);
+      p.insertRowColumn(0, 0, "ab1234ch");
+      p.removeRowColumn(0, 2, 4);
+      p.insertRowColumn(0, 3, "defg");
+      assert.strictEqual(p.text(), "abcdefgh");
+      p.insertRowColumn(0, 8, "\n1234567\n89\nijkqrs");
+      p.removeRowColumn(0, 8, 12);
+      p.insertRowColumn(0, 11, "lmnop");
+      assert.strictEqual(p.text(), "abcdefghijklmnopqrs");
+    });
+  });
+
+  describe("removeRowColumn", () => {
+    it("can remove text at the beginning of the array", () => {
+      var p = new RGA(0);
+      type(p, RGA.left, "abcdefg");
+      p.removeRowColumn(0, 0, 3);
+      assert.strictEqual(p.text(), "defg");
+    });
+    it("can remove text at the end of the array", () => {
+      var p = new RGA(0);
+      type(p, RGA.left, "hi\nthere\nyou kid");
+      p.removeRowColumn(2, 3, 4);
+      assert.strictEqual(p.text(), "hi\nthere\nyou");
+    });
+    it("can remove everything from the array", () => {
+      var p = new RGA(0);
+      type(p, RGA.left, "good morning, how are\nyou today?");
+      p.removeRowColumn(0, 0, p.text().length);
+      assert.strictEqual(p.text(), "");
+    });
+    it("can remove characters when some characters have already been removed", () => {
+      var p = new RGA(0);
+      type(p, RGA.left, "abcdefg");
+      p.removeRowColumn(0, 3, 1);
+      assert.strictEqual(p.text(), "abcefg");
+      p.removeRowColumn(0, 2, 2);
+      assert.strictEqual(p.text(), "abfg");
+      p.removeRowColumn(0, 0, 4);
+      assert.strictEqual(p.text(), "");
+    });
+  });
 });
