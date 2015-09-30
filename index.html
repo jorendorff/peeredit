@@ -31,7 +31,10 @@
         socket.on("welcome", function (event) {
           rga = new RGA(event.id, event.history);
           RGA.tieToSocket(rga, socket);
+
+          editor.setValue(rga.text(), -1);
           RGA.tieToAceEditor(rga, editor);
+          editor.focus();
         });
       });
     </script>
