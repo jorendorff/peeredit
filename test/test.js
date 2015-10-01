@@ -77,8 +77,8 @@ describe("RGA", () => {
     assert.strictEqual(q.text(), "");
 
     // Whitebox-test that q knows about the deleted characters from p.
-    q._downstream(other, {type: "addRight", t: a, w: {atom: "c", timestamp: b + 2}});
-    q._downstream(other, {type: "addRight", t: b, w: {atom: "d", timestamp: b + 3}});
+    q._downstream(other.downstream, {type: "addRight", t: a, w: {atom: "c", timestamp: b + 2}});
+    q._downstream(other.downstream, {type: "addRight", t: b, w: {atom: "d", timestamp: b + 3}});
     assert.strictEqual(q.text(), "cd");
   });
 
@@ -203,9 +203,9 @@ describe("RGA", () => {
           timestamps.length--;
 
           var w = {atom: arbitraryChar.generator(), timestamp: t};
-          h._downstream(h, {type: "addRight", t: prev, w: w});
+          h._downstream(h.downstream, {type: "addRight", t: prev, w: w});
           if (jsc.random.number(0, 1) < pRemove)
-            h._downstream(h, {type: "remove", t: t});
+            h._downstream(h.downstream, {type: "remove", t: t});
           prev = t;
         }
         return h;
