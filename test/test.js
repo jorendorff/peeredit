@@ -6,7 +6,7 @@ var jsc = require("jsverify");
 describe("RGA", () => {
   it("can contain text", () => {
     var p = new RGA(0);
-    var cursor = RGA.left.timestamp;
+    var cursor = p.left.timestamp;
     cursor = p.addRight(cursor, "h");
     cursor = p.addRight(cursor, "i");
     assert.strictEqual(p.text(), "hi");
@@ -14,9 +14,9 @@ describe("RGA", () => {
 
   it("can delete text", () => {
     var p = new RGA(0);
-    var c = p.addRight(RGA.left.timestamp, "c");
-    var b = p.addRight(RGA.left.timestamp, "b");
-    var a = p.addRight(RGA.left.timestamp, "a");
+    var c = p.addRight(p.left.timestamp, "c");
+    var b = p.addRight(p.left.timestamp, "b");
+    var a = p.addRight(p.left.timestamp, "a");
     p.remove(b);
     assert.strictEqual(p.text(), "ac");
     p.remove(a);
@@ -33,18 +33,16 @@ describe("RGA", () => {
 
   // Delete some characters typed by type()
   // where `stop === type(rga, start, text)`.
-  // (This code can't delete ranges that contain already-deleted characters.)
   function deleteRange(rga, start, stop) {
-    var next;
-    for (var cursor = start; cursor !== stop; cursor = next) {
-      next = rga.e.get(cursor).timestamp;
-      rga.remove(next);
+    for (var node = rga._index.get(start); node.timestamp !== stop; node = node.next) {
+      if (!node.next.removed)
+        rga.remove(node.next.timestamp);
     }
   }
 
   it("can be replicated from history", () => {
     var p = new RGA(1);
-    var c = RGA.left.timestamp;
+    var c = p.left.timestamp;
     c = type(p, c, "good ");
     var d = type(p, c, "bwor");
     deleteRange(p, c, d);
@@ -58,7 +56,7 @@ describe("RGA", () => {
   it("can be replicated from history even if input is typed backwards", () => {
     var p = new RGA(1);
     for (var c of "olleh")
-      p.addRight(RGA.left.timestamp, c);
+      p.addRight(p.left.timestamp, c);
 
     var q = new RGA(2, p.history());
     assert.strictEqual(q.text(), "hello");
@@ -77,7 +75,7 @@ describe("RGA", () => {
 
   it("retains deleted items when replicated from history", () => {
     var main = new RGA(0);
-    var a = main.addRight(RGA.left.timestamp, "a");
+    var a = main.addRight(main.left.timestamp, "a");
     var b = main.addRight(a, "b");
 
     var one = copyWithSockets(main, 1);
@@ -104,7 +102,7 @@ describe("RGA", () => {
 
   it("sends ops to tied replicas", () => {
     var p = new RGA(1);
-    var c = type(p, RGA.left.timestamp, "hi");
+    var c = type(p, p.left.timestamp, "hi");
     var q = new RGA(2, p.history());
     RGA.tie(p, q);
 
@@ -120,10 +118,10 @@ describe("RGA", () => {
     var p = new RGA(0);
     var q = new RGA(1);
     RGA.tie(p, q);
-    var c = q.addRight(RGA.left.timestamp, "A");
+    var c = q.addRight(q.left.timestamp, "A");
     assert.strictEqual(q.text(), "A");
     assert.strictEqual(p.text(), "A");
-    var d = p.addRight(RGA.left.timestamp, "B");
+    var d = p.addRight(p.left.timestamp, "B");
     assert.strictEqual(p.text(), "BA");
     assert.strictEqual(q.text(), "BA");
   });
@@ -135,9 +133,9 @@ describe("RGA", () => {
       replicas[i] = new RGA(i);
       RGA.tie(replicas[i - 1], replicas[i]);
     }
-    type(replicas[N-1], RGA.left.timestamp, "A");
+    type(replicas[N-1], replicas[N-1].left.timestamp, "A");
     assert(replicas.every(r => r.text() === "A"));
-    type(replicas[0], RGA.left.timestamp, "Z");
+    type(replicas[0], replicas[0].left.timestamp, "Z");
     assert(replicas.every(r => r.text() === "ZA"));
   });
 
@@ -149,7 +147,7 @@ describe("RGA", () => {
       RGA.tieToSocket(p, a);
       RGA.tieToSocket(q, b);
 
-      p.addRight(RGA.left.timestamp, "Q");
+      p.addRight(p.left.timestamp, "Q");
       assert.strictEqual(q.text(), "");  // not delivered yet
       a.deliver("downstream", {
         type: "addRight",
@@ -214,8 +212,8 @@ describe("RGA", () => {
         for (var i = 0; i < len; i++)
           timestamps[i] = i;
 
-        var prev = RGA.left.timestamp;
         var h = new RGA(0);
+        var prev = h.left.timestamp;
         for (var i = 0; i < len; i++) {
           var tIndex = jsc.random(0, timestamps.length - 1);
           var t = timestamps[tIndex];
@@ -268,28 +266,28 @@ describe("RGA", () => {
   describe("removeRowColumn", () => {
     it("can remove text at the beginning of the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left.timestamp, "abcdefg");
+      type(p, p.left.timestamp, "abcdefg");
       p.removeRowColumn(p, 0, 0, 3);
       assert.strictEqual(p.text(), "defg");
     });
 
     it("can remove text at the end of the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left.timestamp, "hi\nthere\nyou kid");
+      type(p, p.left.timestamp, "hi\nthere\nyou kid");
       p.removeRowColumn(p, 2, 3, 4);
       assert.strictEqual(p.text(), "hi\nthere\nyou");
     });
 
     it("can remove everything from the array", () => {
       var p = new RGA(0);
-      type(p, RGA.left.timestamp, "good morning, how are\nyou today?");
+      type(p, p.left.timestamp, "good morning, how are\nyou today?");
       p.removeRowColumn(p, 0, 0, p.text().length);
       assert.strictEqual(p.text(), "");
     });
 
     it("can remove characters when some characters have already been removed", () => {
       var p = new RGA(0);
-      type(p, RGA.left.timestamp, "abcdefg");
+      type(p, p.left.timestamp, "abcdefg");
       p.removeRowColumn(p, 0, 3, 1);
       assert.strictEqual(p.text(), "abcefg");
       p.removeRowColumn(p, 0, 2, 2);
