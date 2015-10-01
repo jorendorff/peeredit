@@ -64,22 +64,42 @@ describe("RGA", () => {
     assert.strictEqual(q.text(), "hello");
   });
 
+  function copyWithSockets(main, id) {
+    var copy = new RGA(id, main.history());
+    var pair = socketpair();
+    RGA.tieToSocket(main, pair[0]);
+    RGA.tieToSocket(copy, pair[1]);
+    return {main: main,
+            copy: copy,
+            mainToCopy: pair[0],
+            copyToMain: pair[1]};
+  }
+
   it("retains deleted items when replicated from history", () => {
-    var p = new RGA(1);
-    var a = p.addRight(RGA.left.timestamp, "a");
-    var b = p.addRight(a, "b");
-    var other = new RGA(3, p.history());
-    p.remove(a);
-    p.remove(b);
-    assert.strictEqual(p.text(), "");
+    var main = new RGA(0);
+    var a = main.addRight(RGA.left.timestamp, "a");
+    var b = main.addRight(a, "b");
 
-    var q = new RGA(2, p.history());
-    assert.strictEqual(q.text(), "");
+    var one = copyWithSockets(main, 1);
+    var two = copyWithSockets(main, 2);
 
-    // Whitebox-test that q knows about the deleted characters from p.
-    q._downstream(other.downstream, {type: "addRight", t: a, w: {atom: "c", timestamp: b + 2}});
-    q._downstream(other.downstream, {type: "addRight", t: b, w: {atom: "d", timestamp: b + 3}});
-    assert.strictEqual(q.text(), "cd");
+    main.remove(a);
+    main.remove(b);
+    assert.strictEqual(main.text(), "");
+
+    for (var i = 0; i < 2; i++)
+      one.mainToCopy.deliver("downstream", {type: "remove"});
+    assert.strictEqual(one.copy.text(), "");
+
+    // Now test that one.copy knows about the deleted characters from main.
+    two.copy.addRight(b, "d");
+    two.copy.addRight(a, "c");
+    for (var i = 0; i < 2; i++) {
+      two.copyToMain.deliver("downstream", {type: "addRight"});
+      one.mainToCopy.deliver("downstream", {type: "addRight"});
+    }
+    assert.strictEqual(main.text(), "cd");
+    assert.strictEqual(one.copy.text(), "cd");
   });
 
   it("sends ops to tied replicas", () => {
