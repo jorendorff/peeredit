@@ -189,7 +189,7 @@ describe("RGA", () => {
 
     var arbitraryRGA = jsc.bless({
       generator: function () {
-        var len = jsc.random(0, 30), pRemove = Math.random();
+        var len = jsc.random(0, 30), pRemove = jsc.random.number(0, 1);
         var timestamps = [];
         for (var i = 0; i < len; i++)
           timestamps[i] = i;
@@ -204,7 +204,7 @@ describe("RGA", () => {
 
           var w = {atom: arbitraryChar.generator(), timestamp: t};
           h._downstream(h, {type: "addRight", t: prev, w: w});
-          if (Math.random() < pRemove)
+          if (jsc.random.number(0, 1) < pRemove)
             h._downstream(h, {type: "remove", t: t});
           prev = t;
         }
