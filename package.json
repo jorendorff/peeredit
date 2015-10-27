@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "Collaborative text editing with a CRDT",
   "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "express": "^4.13.3",
     "jsverify": "^0.7.1",
