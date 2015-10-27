@@ -1,5 +1,7 @@
 // Peeredit: conflict-free collaborative editing
 
+"use strict";
+
 // This is a typical Node server. Plug together a few blocks and you've got an
 // HTTP server.
 var app = require('express')();
