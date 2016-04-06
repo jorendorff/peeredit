@@ -27,7 +27,6 @@ app.get('/lib/rga.js', function (req, res) {
 // module.
 var RGA = require('./lib/rga.js');
 var doc = new RGA(0);
-doc.addRight(doc.left.timestamp, "\n");  // HACK workaround for quill badness :(
 var nextUserId = 0;  // Used to generate a unique id for each user.
 
 // Now all we have to do is handle socket.io connections so people can interact

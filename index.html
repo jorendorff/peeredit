@@ -17,12 +17,10 @@
   </head>
   <body>
     <div id="editor"></div>
-    <script src="https://cdn.quilljs.com/0.20.0/quill.js"></script>
-<!--
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/ace.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/mode-javascript.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.0/theme-monokai.js"></script>
--->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/slow.io/slow.io.js"></script>
@@ -31,21 +29,17 @@
       "use strict";
 
       $(function (event) {
-        //var editor = ace.edit("editor");
-        //editor.setTheme("ace/theme/monokai");  // monokai, ambiance, solarized_dark, tomorrow_night
-        //editor.getSession().setMode("ace/mode/javascript");
-        var quill = new Quill("#editor");
+        var editor = ace.edit("editor");
+        editor.setTheme("ace/theme/monokai");  // monokai, ambiance, solarized_dark, tomorrow_night
+        editor.getSession().setMode("ace/mode/javascript");
 
         var socket = io();
-        var rga;
         socket.on("welcome", function (event) {
-          rga = new RGA(event.id, event.history);
-          RGA.tieToSocket(rga, socket);
-
-          quill.setText(rga.text());
-          console.log(uneval(quill.getText()));
-          RGA.tieToQuillEditor(rga, quill);
-          quill.focus();
+          // `local` is this window's replica of the document we're editing together.
+          var local = new RGA(event.id, event.history);
+          RGA.tieToSocket(local, socket);
+          RGA.tieToAceEditor(local, editor);
+          editor.focus();
         });
       });
     </script>
