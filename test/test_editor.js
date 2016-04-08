@@ -75,23 +75,24 @@ class MockAceEditor {
   }
 }
 
-describe("RGA.tieToAceEditor", () => {
+describe("RGA.AceEditorRGA", () => {
   it("propagates inserts from the RGA to the editor", () => {
     let q = new MockEventQueue;
-    let e = new MockAceEditor(q);
-    let a = new RGA(0, undefined, q);
-    RGA.tieToAceEditor(a, e, q);
+    let e = new RGA.AceEditorRGA(0, new MockAceEditor(q));
+    let a = new RGA(1, undefined, q);
+    RGA.tie(a, e);
     var cursor = a.left.timestamp;
     cursor = a.addRight(cursor, "h");
     cursor = a.addRight(cursor, "i");
     q.drain();
-    assert.strictEqual(e.getValue(), "hi");
+    assert.strictEqual(e.editor.getValue(), "hi");
   });
 
   it("clobbers the previous editor state", () => {
     let q = new MockEventQueue;
-    let e = new MockAceEditor(q);
-    e.setValue("one\ntwo\nthree\n");
+    let editor = new MockAceEditor(q);
+    editor.setValue("one\ntwo\nthree\n");
+
     let p = new RGA(0, undefined, q);
     let cursor = p.left.timestamp;
     cursor = p.addRight(cursor, "X");
@@ -100,127 +101,136 @@ describe("RGA.tieToAceEditor", () => {
     cursor = p.addRight(cursor, "\n");
     cursor = p.addRight(cursor, "Z");
     cursor = p.addRight(cursor, "Z");
-    RGA.tieToAceEditor(p, e, q);
-    assert.strictEqual(e.getValue(), "X\nY\nZZ");
+
+    let e = new RGA.AceEditorRGA(1, editor, p.history(), q);
+    assert.strictEqual(editor.getValue(), "X\nY\nZZ");
   });
 
   it("propagates deletes from the RGA to the editor", () => {
     let q = new MockEventQueue;
-    let e = new MockAceEditor(q);
-    let p = new RGA(0, undefined, q);
-    RGA.tieToAceEditor(p, e, q);
-    var c = p.addRight(p.left.timestamp, "c");
-    var b = p.addRight(p.left.timestamp, "b");
-    var a = p.addRight(p.left.timestamp, "a");
+    let x = new RGA(1, undefined, q);
+    let y = new RGA.AceEditorRGA(0, new MockAceEditor(q), undefined, q);
+    RGA.tie(x, y);
+    var c = x.addRight(x.left.timestamp, "c");
+    var b = x.addRight(x.left.timestamp, "b");
+    var a = x.addRight(x.left.timestamp, "a");
     q.drain();
+    assert.strictEqual(y.editor.getValue(), "abc");
 
-    p.remove(b);
+    x.remove(b);
     q.drain();
-    assert.strictEqual(e.getValue(), "ac");
+    assert.strictEqual(y.editor.getValue(), "ac");
 
-    p.remove(a);
+    x.remove(a);
     q.drain();
-    assert.strictEqual(e.getValue(), "c");
+    assert.strictEqual(y.editor.getValue(), "c");
 
-    p.remove(c);
+    x.remove(c);
     q.drain();
-    assert.strictEqual(e.getValue(), "");
+    assert.strictEqual(y.editor.getValue(), "");
   });
 
   it("propagates inserts from the editor to the RGA", () => {
     let q = new MockEventQueue;
-    let e = new MockAceEditor(q);
-    let p = new RGA(0, undefined, q);
-    RGA.tieToAceEditor(p, e, q);
+    let editor = new MockAceEditor(q);
+    let x = new RGA.AceEditorRGA(1, editor, undefined, q);
+    let y = new RGA(0, undefined, q);
+    RGA.tie(x, y);
 
-    e.insert({row: 0, column: 0}, "hello");
+    editor.insert({row: 0, column: 0}, "hello");
     q.drain();
-    assert.strictEqual(p.text(), "hello");
+    assert.strictEqual(x.text(), "hello");
+    assert.strictEqual(y.text(), "hello");
 
-    e.insert({row: 0, column: 0}, "\n");
+    editor.insert({row: 0, column: 0}, "\n");
     q.drain();
-    assert.strictEqual(p.text(), "\nhello");
+    assert.strictEqual(x.text(), "\nhello");
+    assert.strictEqual(y.text(), "\nhello");
 
-    e.insert({row: 1, column: 4}, "iqu");
+    editor.insert({row: 1, column: 4}, "iqu");
     q.drain();
-    assert.strictEqual(p.text(), "\nhelliquo");
+    assert.strictEqual(x.text(), "\nhelliquo");
+    assert.strictEqual(y.text(), "\nhelliquo");
 
-    e.insert({row: 0, column: 0}, "hi!");
+    editor.insert({row: 0, column: 0}, "hi!");
     q.drain();
-    assert.strictEqual(p.text(), "hi!\nhelliquo");
+    assert.strictEqual(x.text(), "hi!\nhelliquo");
+    assert.strictEqual(y.text(), "hi!\nhelliquo");
   });
 
   it("propagates deletes from the editor to the RGA", () => {
     let q = new MockEventQueue;
-    let e = new MockAceEditor(q);
-    let p = new RGA(0, undefined, q);
-    p.addRight(p.left.timestamp, "c");
-    p.addRight(p.left.timestamp, "b");
-    p.addRight(p.left.timestamp, "a");
-    RGA.tieToAceEditor(p, e, q);
-    assert.strictEqual(e._subscribers.length, 1);
+    let editor = new MockAceEditor(q);
+    let x = new RGA.AceEditorRGA(0, editor, undefined, q);
+    let y = new RGA(1, undefined, q);
+    RGA.tie(x, y);
 
-    e.remove({start: {row: 0, column: 1}, end: {row: 0, column: 2}});
-    assert.strictEqual(e.getValue(), "ac");
-    assert.strictEqual(p.text(), "abc");
-    assert.strictEqual(q._queue.length, 1);
+    y.addRight(y.left.timestamp, "c");
+    y.addRight(y.left.timestamp, "b");
+    y.addRight(y.left.timestamp, "a");
+    assert.strictEqual(y.text(), "abc");
     q.drain();
-    assert.strictEqual(p.text(), "ac");
 
-    e.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
+    editor.remove({start: {row: 0, column: 1}, end: {row: 0, column: 2}});
     q.drain();
-    assert.strictEqual(p.text(), "c");
+    assert.strictEqual(y.text(), "ac");
 
-    e.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
+    editor.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
     q.drain();
-    assert.strictEqual(p.text(), "");
+    assert.strictEqual(y.text(), "c");
+
+    editor.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
+    q.drain();
+    assert.strictEqual(y.text(), "");
   });
 
   it("can cope with editor updates being received slowly", () => {
-    let eq = new MockEventQueue;
-    let e = new MockAceEditor(eq);
-    let pq = new MockEventQueue;
-    let p = new RGA(0, undefined, pq);
-    let cursor = p.left.timestamp;
+    let q = new MockEventQueue;
+    let x = new RGA(0, undefined, q);
+    let cursor = x.left.timestamp;
     let space;
     "HOME RUN".split(/(?:)/g).forEach(ch => {
-      cursor = p.addRight(cursor, ch);
+      cursor = x.addRight(cursor, ch);
       if (ch == " ")
         space = cursor;
     });
-    RGA.tieToAceEditor(p, e, eq);
-    assert.strictEqual(e.getValue(), "HOME RUN");
+
+    let yq = new MockEventQueue;
+    let editor = new MockAceEditor(yq);
+    let y = new RGA.AceEditorRGA(1, editor, x.history(), q);
+    assert.strictEqual(editor.getValue(), "HOME RUN");
+    RGA.tie(x, y);
 
     // A character is deleted, using the editor. Note that we'll be out of
     // sync until the edit event is delivered from e to p.
-    e.remove({start: {row: 0, column: 4}, end: {row: 0, column: 5}});
-    assert.strictEqual(e.getValue(), "HOMERUN");
-    assert.strictEqual(p.text(), "HOME RUN");
+    editor.remove({start: {row: 0, column: 4}, end: {row: 0, column: 5}});
+    assert.strictEqual(editor.getValue(), "HOMERUN");
+    assert.strictEqual(y.text(), "HOME RUN");
 
     // Racing with that change, an edit comes in to the RGA.  This forces the
     // editor state to be reconciled (via diffing), even though we still
     // haven't delivered the edit event yet.
-    p.addRight(space, "*");
-    pq.drain();  // deliver p's event but not e's
-    assert.strictEqual(e.getValue(), "HOME*RUN");
-    assert.strictEqual(p.text(), "HOME*RUN");
+    x.addRight(space, "*");
+    q.drain();  // deliver x's event but not editor's
+    assert.strictEqual(editor.getValue(), "HOME*RUN");
+    assert.strictEqual(y.text(), "HOME*RUN");
+    assert.strictEqual(x.text(), "HOME*RUN");
 
     // Delivering the edit event then has no effect, since we already handled
     // that edit.
-    eq.drain();
-    assert.strictEqual(e.getValue(), "HOME*RUN");
-    assert.strictEqual(p.text(), "HOME*RUN");
+    yq.drain();
+    assert.strictEqual(editor.getValue(), "HOME*RUN");
+    assert.strictEqual(x.text(), "HOME*RUN");
+    assert.strictEqual(y.text(), "HOME*RUN");
   });
 
   it("passes fuzztest #1", () => {
     let q = new MockEventQueue;
     let e0q = new MockEventQueue;
-    let a0 = new RGA(0, undefined, q);
     let e0 = new MockAceEditor(e0q);
-    RGA.tieToAceEditor(a0, e0, e0q);
-    let a1 = new RGA(1, undefined, q);
+    let a0 = new RGA.AceEditorRGA(0, e0, undefined, q);
     let e1 = new MockAceEditor(q);
-    RGA.tieToAceEditor(a1, e1, q);
+    let a1 = new RGA.AceEditorRGA(1, e1, undefined, q);
     RGA.tie(a0, a1);
     e1.setValue("\n");
     e0.setValue("\n");
@@ -233,12 +243,10 @@ describe("RGA.tieToAceEditor", () => {
 
   it("passes fuzztest #2", () => {
     let q = new MockEventQueue;
-    let a0 = new RGA(0, undefined, q);
     let e0 = new MockAceEditor(q);
-    RGA.tieToAceEditor(a0, e0, q);
-    let a1 = new RGA(1, undefined, q);
+    let a0 = new RGA.AceEditorRGA(0, e0, undefined, q);
     let e1 = new MockAceEditor(q);
-    RGA.tieToAceEditor(a1, e1, q);
+    let a1 = new RGA.AceEditorRGA(1, e1, undefined, q);
     RGA.tie(a0, a1);
     e0.setValue("X");
     e1.setValue("Y");
