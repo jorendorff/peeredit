@@ -3,29 +3,16 @@
 "use strict";
 
 var RGA = require("../lib/rga.js");
-var socketpair = require("../lib/socketpair.js");
+var testsupport = require("../lib/testsupport.js");
+var socketpair = testsupport.socketpair;
+var MockEventQueue = testsupport.MockEventQueue;
 var assert = require("assert");
 
-class MockEventQueue {
-  constructor() {
-    this._queue = [];
-  }
-
-  defer(cb) {
-    this._queue.push(cb);
-  }
-
-  drain() {
-    while (this._queue.length > 0)
-      this._queue.shift()();
-  }
-}
-
 class MockAceEditor {
-  constructor() {
+  constructor(queue) {
     this._lines = [""]
     this._subscribers = [];
-    this._queue = new MockEventQueue;
+    this._queue = queue || new MockEventQueue;
   }
 
   getSession() { return this; }
@@ -90,19 +77,22 @@ class MockAceEditor {
 
 describe("RGA.tieToAceEditor", () => {
   it("propagates inserts from the RGA to the editor", () => {
-    let e = new MockAceEditor();
-    let p = new RGA(0);
-    RGA.tieToAceEditor(p, e);
-    var cursor = p.left.timestamp;
-    cursor = p.addRight(cursor, "h");
-    cursor = p.addRight(cursor, "i");
+    let q = new MockEventQueue;
+    let e = new MockAceEditor(q);
+    let a = new RGA(0, undefined, q);
+    RGA.tieToAceEditor(a, e, q);
+    var cursor = a.left.timestamp;
+    cursor = a.addRight(cursor, "h");
+    cursor = a.addRight(cursor, "i");
+    q.drain();
     assert.strictEqual(e.getValue(), "hi");
   });
 
   it("clobbers the previous editor state", () => {
-    let e = new MockAceEditor();
+    let q = new MockEventQueue;
+    let e = new MockAceEditor(q);
     e.setValue("one\ntwo\nthree\n");
-    let p = new RGA(0);
+    let p = new RGA(0, undefined, q);
     let cursor = p.left.timestamp;
     cursor = p.addRight(cursor, "X");
     cursor = p.addRight(cursor, "\n");
@@ -110,67 +100,87 @@ describe("RGA.tieToAceEditor", () => {
     cursor = p.addRight(cursor, "\n");
     cursor = p.addRight(cursor, "Z");
     cursor = p.addRight(cursor, "Z");
-    RGA.tieToAceEditor(p, e);
+    RGA.tieToAceEditor(p, e, q);
     assert.strictEqual(e.getValue(), "X\nY\nZZ");
   });
 
   it("propagates deletes from the RGA to the editor", () => {
-    let e = new MockAceEditor();
-    let p = new RGA(0);
-    RGA.tieToAceEditor(p, e);
+    let q = new MockEventQueue;
+    let e = new MockAceEditor(q);
+    let p = new RGA(0, undefined, q);
+    RGA.tieToAceEditor(p, e, q);
     var c = p.addRight(p.left.timestamp, "c");
     var b = p.addRight(p.left.timestamp, "b");
     var a = p.addRight(p.left.timestamp, "a");
+    q.drain();
+
     p.remove(b);
+    q.drain();
     assert.strictEqual(e.getValue(), "ac");
+
     p.remove(a);
+    q.drain();
     assert.strictEqual(e.getValue(), "c");
+
     p.remove(c);
+    q.drain();
     assert.strictEqual(e.getValue(), "");
   });
 
   it("propagates inserts from the editor to the RGA", () => {
-    let e = new MockAceEditor();
-    let p = new RGA(0);
-    RGA.tieToAceEditor(p, e);
+    let q = new MockEventQueue;
+    let e = new MockAceEditor(q);
+    let p = new RGA(0, undefined, q);
+    RGA.tieToAceEditor(p, e, q);
+
     e.insert({row: 0, column: 0}, "hello");
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "hello");
+
     e.insert({row: 0, column: 0}, "\n");
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "\nhello");
+
     e.insert({row: 1, column: 4}, "iqu");
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "\nhelliquo");
+
     e.insert({row: 0, column: 0}, "hi!");
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "hi!\nhelliquo");
   });
 
   it("propagates deletes from the editor to the RGA", () => {
-    let e = new MockAceEditor();
-    let p = new RGA(0);
+    let q = new MockEventQueue;
+    let e = new MockAceEditor(q);
+    let p = new RGA(0, undefined, q);
     p.addRight(p.left.timestamp, "c");
     p.addRight(p.left.timestamp, "b");
     p.addRight(p.left.timestamp, "a");
-    RGA.tieToAceEditor(p, e);
+    RGA.tieToAceEditor(p, e, q);
+    assert.strictEqual(e._subscribers.length, 1);
 
     e.remove({start: {row: 0, column: 1}, end: {row: 0, column: 2}});
-    e._deliverCallbacks();
+    assert.strictEqual(e.getValue(), "ac");
+    assert.strictEqual(p.text(), "abc");
+    assert.strictEqual(q._queue.length, 1);
+    q.drain();
     assert.strictEqual(p.text(), "ac");
 
     e.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "c");
 
     e.remove({start: {row: 0, column: 0}, end: {row: 0, column: 1}});
-    e._deliverCallbacks();
+    q.drain();
     assert.strictEqual(p.text(), "");
   });
 
   it("can cope with editor updates being received slowly", () => {
-    let e = new MockAceEditor();
-    let p = new RGA(0);
+    let eq = new MockEventQueue;
+    let e = new MockAceEditor(eq);
+    let pq = new MockEventQueue;
+    let p = new RGA(0, undefined, pq);
     let cursor = p.left.timestamp;
     let space;
     "HOME RUN".split(/(?:)/g).forEach(ch => {
@@ -178,7 +188,7 @@ describe("RGA.tieToAceEditor", () => {
       if (ch == " ")
         space = cursor;
     });
-    RGA.tieToAceEditor(p, e);
+    RGA.tieToAceEditor(p, e, eq);
     assert.strictEqual(e.getValue(), "HOME RUN");
 
     // A character is deleted, using the editor. Note that we'll be out of
@@ -191,12 +201,13 @@ describe("RGA.tieToAceEditor", () => {
     // editor state to be reconciled (via diffing), even though we still
     // haven't delivered the edit event yet.
     p.addRight(space, "*");
+    pq.drain();  // deliver p's event but not e's
     assert.strictEqual(e.getValue(), "HOME*RUN");
     assert.strictEqual(p.text(), "HOME*RUN");
 
     // Delivering the edit event then has no effect, since we already handled
     // that edit.
-    e._deliverCallbacks();
+    eq.drain();
     assert.strictEqual(e.getValue(), "HOME*RUN");
     assert.strictEqual(p.text(), "HOME*RUN");
   });

@@ -1,4 +1,5 @@
-var socketpair = require("../lib/socketpair.js");
+var testsupport = require("../lib/testsupport.js");
+var socketpair = testsupport.socketpair;
 var assert = require("assert");
 
 describe("socketpair", () => {
