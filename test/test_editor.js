@@ -6,11 +6,26 @@ var RGA = require("../lib/rga.js");
 var socketpair = require("../lib/socketpair.js");
 var assert = require("assert");
 
+class MockEventQueue {
+  constructor() {
+    this._queue = [];
+  }
+
+  defer(cb) {
+    this._queue.push(cb);
+  }
+
+  drain() {
+    while (this._queue.length > 0)
+      this._queue.shift()();
+  }
+}
+
 class MockAceEditor {
   constructor() {
     this._lines = [""]
     this._subscribers = [];
-    this._queue = [];
+    this._queue = new MockEventQueue;
   }
 
   getSession() { return this; }
@@ -24,6 +39,7 @@ class MockAceEditor {
     // Note: _lines is never an empty array; even if `text` is an empty string,
     // text.split(/\n/g) returns [""].
     this._lines = text.split(/\n/g);
+    this._enqueueChangeEvent();
   }
 
   getLine(n) {
@@ -43,15 +59,14 @@ class MockAceEditor {
     }
   }
 
-  _fireChange() {
+  _enqueueChangeEvent() {
     for (let cb of this._subscribers) {
-      this._queue.push(() => cb.apply(undefined, arguments));
+      this._queue.defer(() => cb.apply(undefined, arguments));
     }
   }
 
   _deliverCallbacks() {
-    while (this._queue.length > 0)
-      this._queue.shift()();
+    this._queue.drain();
   }
   
   insert(loc, s) {
@@ -60,7 +75,7 @@ class MockAceEditor {
     let edited = line.slice(0, column) + s + line.slice(column);
     let args = [row, 1].concat(edited.split(/\n/g));
     this._lines.splice.apply(this._lines, args);
-    this._fireChange();
+    this._enqueueChangeEvent();
   }
 
   remove(span) {
@@ -69,7 +84,7 @@ class MockAceEditor {
     let endLine = this._lines[end.row] || "";
     let postEnd = endLine.slice(end.column, endLine.length);
     this._lines.splice(start.row, end.row - start.row + 1, preStart + postEnd);
-    this._fireChange();
+    this._enqueueChangeEvent();
   }
 }
 
@@ -83,6 +98,7 @@ describe("RGA.tieToAceEditor", () => {
     cursor = p.addRight(cursor, "i");
     assert.strictEqual(e.getValue(), "hi");
   });
+
   it("clobbers the previous editor state", () => {
     let e = new MockAceEditor();
     e.setValue("one\ntwo\nthree\n");
@@ -97,6 +113,7 @@ describe("RGA.tieToAceEditor", () => {
     RGA.tieToAceEditor(p, e);
     assert.strictEqual(e.getValue(), "X\nY\nZZ");
   });
+
   it("propagates deletes from the RGA to the editor", () => {
     let e = new MockAceEditor();
     let p = new RGA(0);
@@ -111,6 +128,7 @@ describe("RGA.tieToAceEditor", () => {
     p.remove(c);
     assert.strictEqual(e.getValue(), "");
   });
+
   it("propagates inserts from the editor to the RGA", () => {
     let e = new MockAceEditor();
     let p = new RGA(0);
@@ -128,6 +146,7 @@ describe("RGA.tieToAceEditor", () => {
     e._deliverCallbacks();
     assert.strictEqual(p.text(), "hi!\nhelliquo");
   });
+
   it("propagates deletes from the editor to the RGA", () => {
     let e = new MockAceEditor();
     let p = new RGA(0);
@@ -148,6 +167,7 @@ describe("RGA.tieToAceEditor", () => {
     e._deliverCallbacks();
     assert.strictEqual(p.text(), "");
   });
+
   it("can cope with editor updates being received slowly", () => {
     let e = new MockAceEditor();
     let p = new RGA(0);
