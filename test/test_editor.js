@@ -211,4 +211,23 @@ describe("RGA.tieToAceEditor", () => {
     assert.strictEqual(e.getValue(), "HOME*RUN");
     assert.strictEqual(p.text(), "HOME*RUN");
   });
+
+  it("passes fuzztest #1", () => {
+    let q = new MockEventQueue;
+    let e0q = new MockEventQueue;
+    let a0 = new RGA(0, undefined, q);
+    let e0 = new MockAceEditor(e0q);
+    RGA.tieToAceEditor(a0, e0, e0q);
+    let a1 = new RGA(1, undefined, q);
+    let e1 = new MockAceEditor(q);
+    RGA.tieToAceEditor(a1, e1, q);
+    RGA.tie(a0, a1);
+    e1.setValue("\n");
+    e0.setValue("\n");
+    e0q.drain();
+    q.drain();
+    e0q.drain();
+    assert.strictEqual(e0.getValue(), "\n\n");
+    assert.strictEqual(e1.getValue(), "\n\n");
+  });
 });
