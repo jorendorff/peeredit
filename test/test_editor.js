@@ -266,4 +266,91 @@ describe("RGA.AceEditorRGA", () => {
     a1.editor.setValue("ta");
     q.drain();
   });
+
+  it("stays in sync with multiple editors racing randomly", () => {
+    function rnd(n) {
+      return Math.floor(n * Math.random());
+    }
+
+    function testRace(log) {
+      let test = {};
+
+      function _do(_code) {
+        log.push(_code);
+        eval(_code);
+      }
+
+      function uneval(s) {
+        return '"' + s.replace(/\t/g, '\\t').replace(/\n/g, '\\n') + '"';
+      }
+
+      let ops = [
+        s => s.slice(0, 1) + 'x' + s.slice(1),
+        s => s + 'a',
+        s => s + '\n',
+        s => s.slice(0, 2) + s.slice(3),  // delete a character
+        s => s.charAt(0) + s.slice(s.length - 1),
+        s => s.replace(/^/g, "\t")  // indent
+      ];
+
+      let nreplicas = 2 + rnd(3);
+
+      // Create n editors, connected randomly
+      for (let i = 0; i < nreplicas; i++) {
+        _do(`test.q${i} = new MockEventQueue;`);
+        _do(`test.e${i} = new MockAceEditor(test.q${i});`);
+        _do(`test.a${i} = new RGA.AceEditorRGA(${i}, test.e${i}, undefined, test.q${i});`);
+        if (i > 0) {
+          let j = rnd(i);
+          _do(`RGA.tie(test.a${j}, test.a${i});`);
+        }
+      }
+
+      // create random mutations, occasionally randomly flushing a queue
+      let flushProbability = 0.9 * Math.random();
+      for (let t = 0; t < rnd(100); t++) {
+        if (Math.random() < flushProbability) {
+          _do(`test.q${rnd(nreplicas)}.drain();`);
+        } else {
+          // Random edit.
+          let op = ops[rnd(ops.length)];
+          let i = rnd(nreplicas);
+          let before = test['e' + i].getValue();
+          let after = op(before);
+          _do(`test.e${i}.setValue(${uneval(after)});`);
+        }
+      }
+
+      // Flush all queues; repeat until all queues are empty.
+      let deliveredAny;
+      do {
+        deliveredAny = false;
+        for (let i = 0; i < nreplicas; i++) {
+          if (test["q" + i]._queue.length > 0) {
+            deliveredAny = true;
+            _do(`test.q${i}.drain();`);
+          }
+        }
+      } while (deliveredAny);
+
+      let expected = test.e0.getValue();
+      for (let i = 0; i < nreplicas; i++) {
+        assert.strictEqual(test["a" + i].text(), expected);
+        assert.strictEqual(test["e" + i].getValue(), expected);
+      }
+    }
+
+    let ntrials = 100;
+    for (let i = 0; i < ntrials; i++) {
+      let log = [];
+      try {
+        testRace(log);
+      } catch (exc) {
+        console.log("// FAILED TEST FOLLOWS ===========================================");
+        for (let j = 0; j < log.length; j++)
+          console.log(log[j]);
+        throw exc;
+      }
+    }
+  });
 });
