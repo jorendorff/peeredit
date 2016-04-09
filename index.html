@@ -36,10 +36,14 @@
         var socket = io();
         socket.on("welcome", function (event) {
           // `local` is this window's replica of the document we're editing together.
-          var local = new RGA(event.id, event.history);
+          var local = new RGA.AceEditorRGA(event.id, editor, event.history);
           RGA.tieToSocket(local, socket);
-          RGA.tieToAceEditor(local, editor);
           editor.focus();
+
+          window.D = {
+            editor: editor,
+            local: local
+          };
         });
       });
     </script>
