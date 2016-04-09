@@ -77,6 +77,25 @@ describe("RGA", () => {
             copyToMain: pair[1]};
   }
 
+  it("can cope with items deleted in separate replicas at the same time", () => {
+    var q = new MockEventQueue();
+    var a = new RGA(0, undefined, q);
+    var cursor = a.left.timestamp;
+    for (var c of "griin") {
+      var p = a.addRight(cursor, c);
+      if (c != 'n')
+        cursor = p;
+    }
+
+    var b = new RGA(1, a.history(), q);
+    RGA.tie(a, b);
+    a.remove(cursor);
+    b.remove(cursor);
+    q.drain();
+    assert.strictEqual(a.text(), "grin");
+    assert.strictEqual(b.text(), "grin");
+  });
+
   it("retains deleted items when replicated from history", () => {
     var queue = new MockEventQueue();
     var main = new RGA(0, undefined, queue);
