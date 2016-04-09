@@ -224,7 +224,7 @@ describe("RGA.AceEditorRGA", () => {
     assert.strictEqual(y.text(), "HOME*RUN");
   });
 
-  it("passes fuzztest #1", () => {
+  it("copes when both editors have new input at the same time", () => {
     let q = new MockEventQueue;
     let e0q = new MockEventQueue;
     let e0 = new MockAceEditor(e0q);
@@ -241,7 +241,7 @@ describe("RGA.AceEditorRGA", () => {
     assert.strictEqual(e1.getValue(), "\n\n");
   });
 
-  it("passes fuzztest #2", () => {
+  it("orders characters the same when text is inserted simultaneously in different replicas", () => {
     let q = new MockEventQueue;
     let e0 = new MockAceEditor(q);
     let a0 = new RGA.AceEditorRGA(0, e0, undefined, q);
@@ -253,5 +253,17 @@ describe("RGA.AceEditorRGA", () => {
     q.drain();
     assert.strictEqual(e0.getValue(), "YX");
     assert.strictEqual(e1.getValue(), "YX");
+  });
+
+  it("copes when the same text is deleted simultaneously in different replicas", () => {
+    let q = new MockEventQueue;
+    let a1 = new RGA.AceEditorRGA(1, new MockAceEditor(q), undefined, q);
+    let a2 = new RGA.AceEditorRGA(2, new MockAceEditor(q), undefined, q);
+    RGA.tie(a1, a2);
+    a1.editor.setValue("atta");
+    q.drain();
+    a2.editor.setValue("ta");
+    a1.editor.setValue("ta");
+    q.drain();
   });
 });
