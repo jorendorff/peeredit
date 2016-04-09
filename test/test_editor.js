@@ -79,11 +79,9 @@ describe("RGA.AceEditorRGA", () => {
   it("propagates inserts from the RGA to the editor", () => {
     let q = new MockEventQueue;
     let e = new RGA.AceEditorRGA(0, new MockAceEditor(q));
-    let a = new RGA(1, undefined, q);
-    RGA.tie(a, e);
-    var cursor = a.left.timestamp;
-    cursor = a.addRight(cursor, "h");
-    cursor = a.addRight(cursor, "i");
+    var cursor = e.left.timestamp;
+    cursor = e.addRight(cursor, "h");
+    cursor = e.addRight(cursor, "i");
     q.drain();
     assert.strictEqual(e.editor.getValue(), "hi");
   });
@@ -108,26 +106,18 @@ describe("RGA.AceEditorRGA", () => {
 
   it("propagates deletes from the RGA to the editor", () => {
     let q = new MockEventQueue;
-    let x = new RGA(1, undefined, q);
-    let y = new RGA.AceEditorRGA(0, new MockAceEditor(q), undefined, q);
-    RGA.tie(x, y);
+    let x = new RGA.AceEditorRGA(0, new MockAceEditor(q), undefined, q);
     var c = x.addRight(x.left.timestamp, "c");
     var b = x.addRight(x.left.timestamp, "b");
     var a = x.addRight(x.left.timestamp, "a");
-    q.drain();
-    assert.strictEqual(y.editor.getValue(), "abc");
+    assert.strictEqual(x.editor.getValue(), "abc");
 
     x.remove(b);
-    q.drain();
-    assert.strictEqual(y.editor.getValue(), "ac");
-
+    assert.strictEqual(x.editor.getValue(), "ac");
     x.remove(a);
-    q.drain();
-    assert.strictEqual(y.editor.getValue(), "c");
-
+    assert.strictEqual(x.editor.getValue(), "c");
     x.remove(c);
-    q.drain();
-    assert.strictEqual(y.editor.getValue(), "");
+    assert.strictEqual(x.editor.getValue(), "");
   });
 
   it("propagates inserts from the editor to the RGA", () => {
