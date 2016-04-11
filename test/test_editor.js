@@ -283,13 +283,16 @@ describe("RGA.AceEditorRGA", () => {
         s => s.replace(/^/g, "\t")  // indent
       ];
 
-      let nreplicas = 2 + rnd(3);
-
-      // Create n editors, connected randomly
-      for (let i = 0; i < nreplicas; i++) {
+      let nqueues = 1 + rnd(3);
+      for (let i = 0; i < nqueues; i++) {
         _do(`test.q${i} = new MockEventQueue;`);
-        _do(`test.e${i} = new MockAceEditor(test.q${i});`);
-        _do(`test.a${i} = new RGA.AceEditorRGA(${i}, test.e${i}, undefined, test.q${i});`);
+      }
+
+      // Create some editors, connected randomly
+      let nreplicas = 2 + rnd(3);
+      for (let i = 0; i < nreplicas; i++) {
+        _do(`test.e${i} = new MockAceEditor(test.q${rnd(nqueues)});`);
+        _do(`test.a${i} = new RGA.AceEditorRGA(${i}, test.e${i}, undefined, test.q${rnd(nqueues)});`);
         if (i > 0) {
           let j = rnd(i);
           _do(`RGA.tie(test.a${j}, test.a${i});`);
@@ -300,7 +303,7 @@ describe("RGA.AceEditorRGA", () => {
       let flushProbability = 0.9 * Math.random();
       for (let t = 0; t < rnd(100); t++) {
         if (Math.random() < flushProbability) {
-          _do(`test.q${rnd(nreplicas)}.drain();`);
+          _do(`test.q${rnd(nqueues)}.drain();`);
         } else {
           // Random edit.
           let op = ops[rnd(ops.length)];
@@ -315,7 +318,7 @@ describe("RGA.AceEditorRGA", () => {
       let deliveredAny;
       do {
         deliveredAny = false;
-        for (let i = 0; i < nreplicas; i++) {
+        for (let i = 0; i < nqueues; i++) {
           if (test["q" + i]._queue.length > 0) {
             deliveredAny = true;
             _do(`test.q${i}.drain();`);
