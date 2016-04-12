@@ -34,17 +34,7 @@
         editor.getSession().setMode("ace/mode/javascript");
 
         var socket = io();
-        socket.on("welcome", function (event) {
-          // `local` is this window's replica of the document we're editing together.
-          var local = new RGA.AceEditorRGA(event.id, editor, event.history);
-          RGA.tieToSocket(local, socket);
-          editor.focus();
-
-          window.D = {
-            editor: editor,
-            local: local
-          };
-        });
+        RGA.AceEditorRGA.setup(editor, socket);
       });
     </script>
   </body>
