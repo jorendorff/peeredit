@@ -201,7 +201,7 @@ describe("RGA", () => {
 
       a.deliver("downstream", {
         type: "addRight",
-        w: {atom: "Q"}
+        chr: "Q"
       });
       queue.drain();
       assert.strictEqual(q.text(), "Q");
