@@ -34,6 +34,7 @@ var nextUserId = 1;  // Used to generate a unique id for each user.
 io.on('connection', function (socket) {
   // Populate the new client with a user id and the full document.
   var userId = nextUserId++;
+  console.log("connection - assigning id " + userId);
   socket.emit("welcome", {id: userId, history: doc.history()});
 
   // Propagate ops in both directions.
