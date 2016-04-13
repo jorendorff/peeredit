@@ -4,7 +4,7 @@
 
 var RGA = require("../lib/rga.js");
 var testsupport = require("../lib/testsupport.js");
-var socketpair = testsupport.socketpair;
+var MockSocket = testsupport.MockSocket;
 var MockEventQueue = testsupport.MockEventQueue;
 var assert = require("assert");
 
@@ -73,6 +73,8 @@ class MockAceEditor {
     this._lines.splice(start.row, end.row - start.row + 1, preStart + postEnd);
     this._enqueueChangeEvent();
   }
+
+  focus() {}
 }
 
 describe("RGA.AceEditorRGA", () => {
@@ -345,5 +347,30 @@ describe("RGA.AceEditorRGA", () => {
         throw exc;
       }
     }
+  });
+
+  it("works over sockets", () => {
+    let q = new MockEventQueue;
+    let root = new RGA(0, undefined, q);
+
+    let pipeA = MockSocket.pair(q);
+    RGA.tieToSocket(root, pipeA[0]);
+    let editorA = new MockAceEditor(q);
+    RGA.AceEditorRGA.setup(editorA, pipeA[1], q);
+    pipeA[0].emit("welcome", {id: 1, history: []});
+
+    let pipeB = MockSocket.pair(q);
+    RGA.tieToSocket(root, pipeB[0]);
+    let editorB = new MockAceEditor(q);
+    RGA.AceEditorRGA.setup(editorB, pipeB[1], q);
+    pipeB[0].emit("welcome", {id: 2, history: []});
+
+    q.drain();
+    editorA.setValue("ya");
+    editorB.setValue("hi");
+    q.drain();
+
+    assert.strictEqual(editorA.getValue(), "hiya");
+    assert.strictEqual(editorB.getValue(), "hiya");
   });
 });
