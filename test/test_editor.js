@@ -349,28 +349,55 @@ describe("RGA.AceEditorRGA", () => {
     }
   });
 
-  it("works over sockets", () => {
-    let q = new MockEventQueue;
-    let root = new RGA(0, undefined, q);
+  function client(origin, id, editor, queue) {
+    let pipe = MockSocket.pair(queue);
+    RGA.tieToSocket(origin, pipe[0]);
+    RGA.AceEditorRGA.setup(editor, pipe[1], queue);
+    pipe[0].emit("welcome", {id: id, history: origin.history()});
+    return {
+      editor: editor,
+      pipe: pipe
+    };
+  }
 
-    let pipeA = MockSocket.pair(q);
-    RGA.tieToSocket(root, pipeA[0]);
-    let editorA = new MockAceEditor(q);
-    RGA.AceEditorRGA.setup(editorA, pipeA[1], q);
-    pipeA[0].emit("welcome", {id: 1, history: []});
+  describe(".setup", () => {
+    it("connects editors via sockets", () => {
+      let q = new MockEventQueue;
+      let origin = new RGA(0, undefined, q);
 
-    let pipeB = MockSocket.pair(q);
-    RGA.tieToSocket(root, pipeB[0]);
-    let editorB = new MockAceEditor(q);
-    RGA.AceEditorRGA.setup(editorB, pipeB[1], q);
-    pipeB[0].emit("welcome", {id: 2, history: []});
+      let a = client(origin, 1, new MockAceEditor(q), q);
+      let b = client(origin, 2, new MockAceEditor(q), q);
+      q.drain();  // finish hooking up, since that clobbers editor content
+      a.editor.setValue("ya");
+      b.editor.setValue("hi");
+      q.drain();
 
-    q.drain();
-    editorA.setValue("ya");
-    editorB.setValue("hi");
-    q.drain();
+      assert.strictEqual(a.editor.getValue(), "hiya");
+      assert.strictEqual(b.editor.getValue(), "hiya");
+    });
 
-    assert.strictEqual(editorA.getValue(), "hiya");
-    assert.strictEqual(editorB.getValue(), "hiya");
+    it("works with disconnects/reconnects", () => {
+      let q = new MockEventQueue;
+      let origin = new RGA(0, undefined, q);
+
+      let a = client(origin, 1, new MockAceEditor(q), q);
+      let b = client(origin, 2, new MockAceEditor(q), q);
+      q.drain();
+      a.pipe[0].emit("disconnect");
+      a.pipe[1].emit("disconnect");
+      b.pipe[0].emit("disconnect");
+      b.pipe[1].emit("disconnect");
+      q.drain();
+
+      // Now simulate hooking up new sockets to the same two editors.
+      let c = client(origin, 3, a.editor, q);
+      let d = client(origin, 4, b.editor, q);
+      q.drain();
+      c.editor.setValue("C");
+      d.editor.setValue("D");
+      q.drain();
+      assert.strictEqual(c.editor.getValue(), "DC");
+      assert.strictEqual(d.editor.getValue(), "DC");
+    });
   });
 });
