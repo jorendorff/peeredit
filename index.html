@@ -31,7 +31,7 @@
       $(function (event) {
         var editor = ace.edit("editor");
         editor.setTheme("ace/theme/monokai");  // monokai, ambiance, solarized_dark, tomorrow_night
-        editor.getSession().setMode("ace/mode/javascript");
+        editor.getSession().setMode("ace/mode/java");
 
         var socket = io();
         RGA.AceEditorRGA.setup(editor, socket);
