@@ -28,7 +28,7 @@ There are several simpler approaches, but they all have problems: see
 
 Then point your browser at http://localhost:3001/ .
 
-(Note to myself: do `nvm use 4` first!)
+(Note to myself: do `nvm use 6` first!)
 
 Use Mocha to run the tests.
 If you don't already have Mocha, you can avoid installing it globally
