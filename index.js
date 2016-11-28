@@ -11,10 +11,10 @@ var server = require('http').Server(app);
 // with adjustable artifical latency.
 var io = require('slow.io')(server);
 
-// The server only knows how to send a single page, index.html.  (It's not
-// *quite* that simple really. Attaching socket.io to the server, above, adds
-// more functionality to the server. It can now serve 'socket.io/socket.io.js',
-// the browser-side half of socket.io.)
+// The server knows how to serve two files: index.html and lib/rga.js.  (It's
+// not *quite* that simple really. Attaching slow.io to the server, above, adds
+// more functionality to the server. It can now serve a couple of scripts:
+// '/socket.io/socket.io.js' and '/slow.io/slow.io.js'.)
 app.get('/', function (req, res) {
   res.sendFile(__dirname + "/index.html");
 });
@@ -24,7 +24,9 @@ app.get('/lib/rga.js', function (req, res) {
 });
 
 // The document model is a "Replicated Global Array", implemented in a separate
-// module.
+// module. Each client has a replica of the document, represented by an RGA
+// that lives in the browser. There's also a central replica `doc` on the
+// server.
 var RGA = require('./lib/rga.js');
 var doc = new RGA(0);
 var nextUserId = 1;  // Used to generate a unique id for each user.
@@ -37,7 +39,9 @@ io.on('connection', function (socket) {
   console.log("connection - assigning id " + userId);
   socket.emit("welcome", {id: userId, history: doc.history()});
 
-  // Propagate ops in both directions.
+  // Propagate ops between the new client and `doc`. Since `doc` is also tied
+  // to all other clients, they form one network, and edits at one client will
+  // eventually reach all replicas.
   RGA.tieToSocket(doc, socket);
 });
 
