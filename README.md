@@ -2,8 +2,8 @@
 
 **Peeredit** is a simple Web app that lets you edit some text online with friends.
 
-This is example code
-for a talk on [CRDTs](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type).
+This is example code for
+[a talk on CRDTs](https://github.com/jorendorff/talks/blob/master/textarea-distributed/textarea-distributed.md).
 
 *   Server code is in
     [index.js](https://github.com/jorendorff/peeredit/blob/master/index.js).
